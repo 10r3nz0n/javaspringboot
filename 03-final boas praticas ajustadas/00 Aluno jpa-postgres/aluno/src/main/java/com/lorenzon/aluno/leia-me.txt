@@ -1,0 +1,477 @@
+/*
+  
+Estudo de caso
+
+    Este estudo foi conduzido como uma jornada incremental de construcao e amadurecimento de uma aplicacao Java com Spring Boot. 
+    Partimos de um ponto deliberadamente simples, validando o basico do framework, a subida do servidor, 
+    o mapeamento de endpoints e a ideia central de que uma requisicao HTTP chega por uma rota e aciona um metodo no controller. 
+    Nesse inicio, o objetivo foi consolidar o fluxo de entrada e saida e entender, de forma concreta, como o Spring liga URL, anotacoes e metodos.
+
+    Na sequencia, evoluimos a estrutura para um desenho mais arquitetural, separando responsabilidades em pacotes e camadas. 
+    O controller passou a ter foco exclusivo em receber requisicoes, montar a resposta e delegar trabalho. 
+    O service assumiu o papel de orquestrador dos casos de uso, concentrando a logica de aplicacao. 
+    O repositorio passou a encapsular a persistencia. A partir disso, o projeto deixou de ser apenas um exercicio de endpoints e se tornou um estudo de organizacao e acoplamento, 
+    tornando mais claro porque a comunidade costuma separar controller, service e repository e como essa separacao melhora manutenibilidade.
+
+    Em seguida, a jornada entrou no ponto mais formativo do processo: a aplicacao do principio DIP do SOLID. 
+    Em vez de o service depender de uma classe concreta de repositorio, ele passou a depender de uma interface, um contrato. 
+    Isso abriu espaco para trocar a implementacao sem alterar o service, permitindo experimentar persistencia OO nativa com serializacao, 
+    e depois migrar para persistencia relacional via JPA e PostgreSQL. Durante esse caminho, problemas reais surgiram e foram resolvidos, 
+    como erros de serializacao e ajustes de injecao com @Autowired e @Qualifier, reforcando na pratica o motivo de existir uma porta de 
+    repositorio e o impacto de acoplamento em tempo de compilacao e em tempo de execucao.
+
+    Na fase seguinte, consolidamos o projeto como uma aplicacao web completa, incluindo templates HTML para formulario e listagem, 
+    com CSS para organizacao visual e pequenas rotinas JavaScript para melhorias de entrada, como normalizacao de CPF. 
+    O CRUD passou a existir de ponta a ponta, com cadastro, listagem, busca, edicao e exclusao, e o fluxo ficou consistente entre view, 
+    controller, service e repositorio. Para evitar retrabalho e inconsistencias, centralizamos rotas e padronizamos navegacao, 
+    reduzindo strings repetidas e melhorando a integracao entre controller e templates.
+
+    Por fim, refinamos a estrutura para alinhar o codigo a boas praticas mais atuais, incluindo conceitos de DDD, SOLID, 
+    object calisthenics e patterns comuns em aplicacoes Spring Boot. O dominio passou a concentrar invariantes, 
+    o service passou a representar casos de uso, a infraestrutura passou a conter detalhes tecnicos como JPA e conversores, 
+    e a camada de interfaces passou a organizar a entrega web. O resultado e um projeto que comecou como um endpoint simples 
+    e terminou como um CRUD completo, com estrutura de pacotes coerente, rotas padronizadas e uma base arquitetural solida para evolucoes futuras, 
+    incluindo validacoes mais sofisticadas, tratamento global de erros e ampliacao do modelo de negocio.
+  
+Estrutura do projeto  
+
+       +----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | CAMADA / PACOTE                                       | CLASSES / ARQUIVOS                | FINALIDADE       
+    +-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | com.lorenzon.aluno                                    | AlunoApplication                  | Bootstrap do Spring Boot e inicio do app. 
+    +-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | com.lorenzon.aluno.configuration                      | AlunoConfiguration                | Configuracoes de infraestrutura e beans (@Bean) quando necessario. 
+    +-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | com.lorenzon.aluno.domain.model                       | Aluno                             | Entidade de dominio com invariantes e mapeamento JPA. 
+    |                                                       | Cpf                               | Value Object do CPF, normaliza e valida, evitando String solta. 
+    +-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | com.lorenzon.aluno.domain.repository                  | AlunoRepositoryInterface          | Porta de repositorio do dominio, usada pela camada de aplicacao (DIP). 
+    +-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | com.lorenzon.aluno.application.service                | AlunoApplicationService            | Casos de uso e orquestracao de regras de aplicacao, com @Transactional. 
+    +-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | com.lorenzon.aluno.infrastructure.persistence.jpa     | AlunoJpaRepository                 | Repositorio Spring Data (JpaRepository) para consultas e CRUD no banco. 
+    |                                                       | AlunoRepositoryJpaAdapter           | Adaptador que implementa a porta do dominio usando Spring Data. 
+    |                                                       | CpfConverter                       | AttributeConverter JPA para persistir Cpf como String em coluna.
+    +-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | com.lorenzon.aluno.infrastructure.web.routes          | RoutesAdvice                       | Centraliza rotas web e expoe getters no Model para Thymeleaf via @ControllerAdvice. 
+    +-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | com.lorenzon.aluno.interfaces.web.controller          | AlunoWebController                 | Controller MVC (views HTML), recebe GET e POST, monta Model e delega para a aplicacao. 
+    +-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | com.lorenzon.aluno.interfaces.web.dto                 | AlunoForm                          | DTO do formulario web, separa entrada HTML do dominio. 
+    +-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | com.lorenzon.aluno.interfaces.web.mapper              | AlunoFormMapper                    | Mapper para conversao AlunoForm <-> Aluno, padroniza transformacoes. 
+    +-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+
+Estrutura de resources (nao sao pacotes Java)
+
+    +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | PASTA                                          | ARQUIVOS                    | FINALIDADE    
+    +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | src/main/resources/templates                   | aluno-form.html             | Template do formulario de cadastro e edicao. 
+    |                                                | aluno-lista.html            | Template da listagem e acoes (buscar, editar, excluir).
+    +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | src/main/resources                             | application.properties      | Configuracao base e selecao de profile.
+    |                                                | application-dev.properties  | Configuracoes do ambiente dev (porta, datasource, jpa).
+    +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+
+Rotas web (padronizadas em RoutesAdvice)
+
+    Base
+        /web/aluno
+
+    GET
+        /web/aluno/criar
+        /web/aluno/listar
+        /web/aluno/buscar
+        /web/aluno/editar/{id}
+
+    POST
+        /web/aluno/salvar
+        /web/aluno/atualizar/{id}
+        /web/aluno/excluir/{id}
+
+Ligacoes principais
+
+    AlunoWebController chama AlunoWebService.
+    AlunoWebService depende de AlunoRepositoryInterface (DIP).
+    A implementacao concreta e escolhida pelo Spring via @Qualifier quando houver mais de um repositorio.
+    AlunoRoutesAdvice centraliza rotas e disponibiliza para templates e controllers.
+
+    Abaixo eu complemento o glossario com um bloco focado em web, rotas, mapeamento, metodos HTTP e os conceitos operacionais que voce usou no CRUD MVC com Spring Boot.
+
+Conceitos
+
+    Conceitos web e de roteamento
+
+    Web
+    Conjunto de tecnologias e protocolos para comunicacao cliente servidor, tipicamente via HTTP.
+
+    Cliente
+    Aplicacao que faz requisicoes, como navegador, Postman ou um frontend.
+
+    Servidor
+    Aplicacao que recebe requisicoes e devolve respostas, no seu caso Spring Boot com Tomcat embutido.
+
+    HTTP
+    Protocolo de comunicacao request response. Define metodos, headers, status codes e corpo.
+
+    Request requisicao
+    Mensagem enviada pelo cliente contendo metodo, URL, headers e opcionalmente body.
+
+    Response resposta
+    Mensagem devolvida pelo servidor contendo status code, headers e opcionalmente body.
+
+    URL
+    Endereco completo do recurso. Exemplo http://localhost:8080/web/aluno/listar
+
+    URI
+    Identificador do recurso. Em rotas, normalmente o caminho, como /web/aluno/listar.
+
+    Porta 8080
+    Porta default do Spring Boot local. Pode ser alterada via server.port.
+
+    Endpoint
+    Combinacao de metodo HTTP + caminho. Exemplo GET /web/aluno/listar.
+
+    Rota route
+    Caminho associado a um handler. No Spring, rota e o mapeamento feito por anotacoes.
+
+    Path
+    Parte do endereco que representa o caminho do recurso. Exemplo /web/aluno.
+
+    Query string
+    Parametros apos ?, no formato chave valor. Exemplo /buscar?cpf=123.
+
+    Path variable
+    Parte variavel do path. Exemplo /editar/10 onde 10 e o id.
+
+    Header
+    Metadados HTTP. Exemplo Content-Type, Accept, Authorization.
+
+    Content-Type
+    Header que indica formato do body enviado. Exemplo application/json, application/x-www-form-urlencoded.
+
+    Accept
+    Header que indica formatos que o cliente aceita receber.
+
+    Body
+    Conteudo enviado na requisicao ou resposta. Em formulario, vem como form data; em API, pode ser JSON.
+
+    Status code
+    Codigo de retorno. 200 ok, 201 created, 302 redirect, 400 bad request, 404 not found, 500 internal server error.
+
+    Metodos HTTP e semantica
+
+    GET
+    Leitura. Ideal para carregar tela, listar dados ou buscar. Nao deveria alterar estado no servidor.
+
+    POST
+    Criacao ou acao que altera estado. Em formulario, usado para salvar e para enviar a exclusao ou atualizacao quando se opta por simplificar.
+
+    PUT
+    Atualizacao completa de um recurso. Em APIs REST, comum para editar um registro inteiro.
+
+    PATCH
+    Atualizacao parcial. Em APIs REST, comum quando edita apenas campos especificos.
+
+    DELETE
+    Exclusao de um recurso. Em web tradicional, muitas vezes simulado via POST por limitacoes de formulario.
+
+    Idempotencia
+    Propriedade em que repetir a mesma chamada tem o mesmo efeito final. GET e idempotente, PUT e idempotente, POST geralmente nao.
+
+    Safe methods
+    Metodos que nao devem modificar estado, como GET.
+
+    Semantica REST versus MVC
+    REST foca em recursos e representacoes, geralmente JSON; MVC foca em views e navegacao, geralmente HTML.
+
+    Spring MVC e mapeamento
+
+    Handler method
+    Metodo do controller que atende uma requisicao especifica.
+
+    @RequestMapping
+    Anotacao que define mapeamento base do controller ou de um metodo.
+
+    @GetMapping
+    Atalho para @RequestMapping(method = GET) com path.
+
+    @PostMapping
+    Atalho para @RequestMapping(method = POST) com path.
+
+    @RequestParam
+    Liga parametro de query string ou form field a um parametro do metodo.
+
+    @PathVariable
+    Liga parte variavel do caminho ao parametro do metodo.
+
+    @ModelAttribute
+    Faz binding de campos do formulario para um objeto e tambem permite expor atributo ao Model.
+
+    Binding data binding
+    Processo de converter parametros da requisicao para tipos Java e preencher um objeto.
+
+    Converter
+    Componente que converte string de entrada em um tipo, como Cpf. Pode ser manual ou via Converter do Spring.
+
+    PRG Post Redirect Get
+    Padrao usado apos POST para evitar reenvio ao dar refresh. Controller retorna redirect para uma rota GET.
+
+    redirect:
+    Prefixo no retorno do controller MVC que gera resposta 302 e redireciona o navegador.
+
+    Forward
+    Encaminhamento interno no servidor sem mudar a URL do cliente. Menos usado em comparacao com redirect no pos POST.
+
+    DispatcherServlet
+    Componente central do Spring MVC que recebe todas as requisicoes e decide qual controller chama.
+
+    HandlerMapping
+    Mecanismo do Spring que encontra o handler method adequado para uma rota.
+
+    ViewResolver
+    Componente que decide qual template renderizar. Exemplo Thymeleaf.
+
+    Model
+    Mapa de atributos para a view. Exemplo model.addAttribute("alunos", lista).
+
+    View template
+    Arquivo HTML com placeholders. Exemplo aluno-form.html e aluno-lista.html.
+
+    Thymeleaf e formulario
+
+    Template engine
+    Motor que transforma template em HTML final.
+
+    th:action
+    Define a URL de envio do form, geralmente a rota POST.
+
+    th:object
+    Define o objeto vinculado ao formulario.
+
+    th:field
+    Liga um input a um campo do objeto. Ajuda a manter nome e valor.
+
+    th:each
+    Iteracao para renderizar lista, por exemplo tabela de alunos.
+
+    th:text
+    Substitui texto com valor do Model.
+
+    th:if th:unless
+    Renderizacao condicional, util para mostrar mensagem de erro ou modo edicao.
+
+    Hidden field
+    Campo oculto usado para transportar id em edicao.
+
+    CSRF
+    Protecao contra ataque de falsificacao de requisicao. Em Spring Security, normalmente exige token em forms.
+
+    Rotas e padronizacao no seu projeto
+
+    Prefixo de rotas
+    Agrupamento por base path. Exemplo /web/aluno como base para todas as telas.
+
+    Centralizacao de rotas
+    Uso de classe de constantes e exposure via @ControllerAdvice para evitar strings duplicadas.
+
+    Alias de rota
+    Nome simbolico para uma rota. Em Spring MVC, existe por convencao via constantes, nao por um sistema nativo de alias compartilhado com HTML puro.
+
+    Rotas web versus rotas api
+    Rotas web retornam views; rotas api retornam dados, tipicamente JSON.
+
+    Erro de rota 404 No static resource
+    Indica que o Spring nao encontrou handler method para aquela rota e tentou tratar como recurso estatico.
+
+    Lombok
+    Biblioteca que gera codigo em tempo de compilacao via anotacoes, reduzindo boilerplate como getters, setters, construtores e toString.
+
+    DTO Data Transfer Object
+    Objeto de transferencia de dados usado para transportar informacoes entre camadas ou entre sistemas, normalmente representando o formato de entrada ou saida de uma operacao.
+
+    Mapper
+    Classe dedicada a converter um objeto em outro, geralmente entre formatos diferentes.
+
+    Controller MVC
+    Classe anotada com @Controller que retorna views (templates) e usa Model para enviar dados ao HTML.
+
+    Service de aplicacao
+    Camada que implementa casos de uso e orquestra fluxo, evitando regra espalhada em controller.
+
+    Repositorio, porta e adaptador
+    Porta e a interface do dominio. Adaptador implementa a porta usando uma tecnologia, como Spring Data JPA.
+
+    DTO Data Transfer Object
+    Objeto de transferencia de dados para entrada e saida HTTP. No projeto, AlunoForm representa campos do formulario.
+
+    Mapper
+    Classe dedicada a converter objetos entre camadas, por exemplo AlunoForm para Aluno e Aluno para AlunoForm.
+
+    JPA e ORM
+    JPA e a especificacao para mapear entidades em tabelas. ORM faz o mapeamento objeto relacional e gerencia persistencia.
+
+    Spring Data JPA e JpaRepository
+    Abstracao que gera implementacoes de repositorio com base em interfaces e convencoes, incluindo consultas derivadas.
+
+    Hibernate
+    Implementacao ORM usada pelo Spring Boot para executar JPA.
+
+    AttributeConverter
+    Recurso JPA para converter um tipo de dominio para um tipo persistivel, como Cpf para String.
+
+    @Transactional
+    Delimita transacao para operacoes de escrita e consistencia no banco.
+
+    Spring MVC e Thymeleaf
+    MVC organiza controller, model e view. Thymeleaf renderiza templates HTML com atributos th.
+
+    Recursos estaticos
+    CSS e JavaScript em src/main/resources/static sao servidos diretamente pelo servidor.
+
+    Profiles
+    application.properties define profile ativo via ACTIVE_PROFILE, e application-dev.properties contem as configuracoes de desenvolvimento.
+
+    SOLID, DDD e object calisthenics
+    DIP para depender de abstracoes, Value Object para CPF, invariantes no dominio, metodos com intencao e classes com responsabilidade unica.
+
+Requisitos minimos para rodar e testar
+
+    Runtime e build
+        JDK 21
+        Maven
+        Git recomendado
+
+    IDE
+        VS Code
+        Extension Pack for Java
+        Spring Boot Extension Pack
+        Lombok Annotations Support recomendado
+        Annotation Processing habilitado na IDE
+
+    Framework e dependencias principais
+        Spring Boot 3.5.10-SNAPSHOT
+        spring-boot-starter-web
+        spring-boot-starter-thymeleaf
+        spring-boot-starter-data-jpa
+        spring-boot-starter-validation
+        postgresql JDBC driver
+        Lombok
+        DevTools recomendado
+
+    Banco de dados
+        PostgreSQL instalado e rodando
+        Database, usuario e senha conforme application-dev.properties
+        Cliente SQL recomendado: pgAdmin ou DBeaver
+
+    Clientes de teste
+        Browser para telas web
+        Insomnia para testes HTTP quando necessario
+
+    Como executar
+        mvn clean test
+        mvn spring-boot:run
+
+    Verificacao rapida
+        Acessar a porta definida no profile dev. No projeto atual, server.port esta em 3000 no application-dev.properties.
+        Exemplo de listagem:
+            http://localhost:3000/web/aluno/listar
+
+
+
+Checklist de requisitos para rodar a aplicacao
+
+Runtime e build
+
+    JDK instalado
+    Versao recomendada: JDK 17 LTS ou JDK 21 LTS.
+    Requisito: JAVA_HOME configurado e java -version retornando a versao correta.
+
+    Maven instalado
+    Requisito: mvn -version funcionando no terminal.
+    Alternativa: Maven Wrapper mvnw no projeto, se existir, elimina instalacao global.
+
+    Git opcional, mas recomendado
+    Requisito: git instalado para clonar e versionar.
+
+IDE e extensoes
+
+    VS Code
+    Requisito: VS Code instalado.
+
+    Extensoes do VS Code para Java
+    Extension Pack for Java
+    Spring Boot Extension Pack
+    Opcional: Maven for Java e Spring Initializr Java Support
+
+Banco de dados
+
+    PostgreSQL instalado e rodando
+    Requisito: service ativo e porta default 5432 acessivel.
+
+    Database e usuario criados
+    Requisito: banco criado com nome definido no application.properties e usuario com permissao.
+
+    Cliente para administrar o banco
+    Opcional, mas recomendado: pgAdmin, DBeaver ou outro client SQL.
+
+Dependencias Spring Boot no projeto
+
+    Dependencias minimas para sua aplicacao web + JPA
+    spring-boot-starter-web
+    spring-boot-starter-thymeleaf
+    spring-boot-starter-data-jpa
+    postgresql driver
+    spring-boot-starter-validation
+
+Clientes para testar a aplicacao
+
+    Browser
+    Requisito para MVC: Chrome, Edge ou Firefox para acessar telas HTML.
+
+    Cliente HTTP
+    Recomendado: Insomnia ou Postman para testar endpoints REST se existirem, ou mesmo rotas web quando fizer sentido.
+    Alternativa: curl no terminal.
+
+Configuracao do projeto
+
+    application.properties ou application-dev.properties
+    Requisito: configurar:
+    server.port
+    spring.datasource.url
+    spring.datasource.username
+    spring.datasource.password
+    spring.jpa.hibernate.ddl-auto
+    spring.jpa.show-sql opcional
+
+Profile
+
+    Se voce usa profiles, requisito: ativar com:
+    spring.profiles.active=dev
+    ou via variavel de ambiente.
+
+Como executar
+
+    Compilar e rodar via Maven
+    mvn clean test
+    mvn spring-boot:run
+
+    Rodar via jar
+    mvn clean package
+    java -jar target/nome-do-jar.jar
+
+Verificacoes rapidas de funcionamento
+
+    Verificar subida do servidor
+    Log indicando Tomcat started e porta correta.
+
+    Verificar pagina inicial do CRUD
+    Acessar no browser:
+    http://localhost:8080
+
+    ou a rota base definida, por exemplo:
+    http://localhost:8080/web/aluno/listar
+
+    Verificar conexao com Postgres
+    Se falhar, o log mostra erro de autenticacao, url ou database inexistente.

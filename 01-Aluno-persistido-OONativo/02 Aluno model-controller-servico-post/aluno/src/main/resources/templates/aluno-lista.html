@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="pt-br" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Lista de Alunos</title>
+</head>
+<body>
+    <h2>Alunos</h2>
+
+    <p><a th:href="@{${routes.webAlunoCriar}}">Cadastrar novo</a></p>
+
+
+    <table border="1" cellpadding="6" cellspacing="0">
+        <thead>
+            <tr>
+                <th>CPF</th>
+                <th>Nome</th>
+                <th>Idade</th>
+                <th>Matricula</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr th:each="a : ${alunos}">
+                <td th:text="${a.cpf.numero}"></td>
+                <td th:text="${a.nome}"></td>
+                <td th:text="${a.idade}"></td>
+                <td th:text="${a.matricula}"></td>
+            </tr>
+        </tbody>
+    </table>
+</body>
+</html>

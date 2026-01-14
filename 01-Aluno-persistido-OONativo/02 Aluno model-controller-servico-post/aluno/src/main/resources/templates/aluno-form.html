@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="pt-br" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Novo Aluno</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+
+        .page {
+            max-width: 700px;
+            margin: 40px auto;
+            padding: 24px;
+        }
+
+        .titulo {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        .erro {
+            margin: 0 auto 18px auto;
+            max-width: 520px;
+            padding: 10px 12px;
+            border: 1px solid #c00;
+            background: #fff5f5;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: 160px 1fr;
+            gap: 12px 14px;
+            align-items: center;
+            max-width: 520px;
+            margin: 0 auto;
+        }
+
+        .form-grid label {
+            text-align: right;
+            padding-right: 6px;
+        }
+
+        .form-grid input {
+            width: 100%;
+            max-width: 320px;
+            padding: 8px 10px;
+            box-sizing: border-box;
+        }
+
+        .acoes {
+            text-align: center;
+            margin-top: 18px;
+        }
+
+        .acoes button {
+            padding: 10px 18px;
+            cursor: pointer;
+        }
+
+        .link-lista {
+            text-align: center;
+            margin-top: 18px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="page">
+        <h2 class="titulo">Cadastro de Aluno</h2>
+
+        <div th:if="${erro != null}" class="erro">
+            <p th:text="${erro}"></p>
+        </div>
+
+        <form th:action="@{${routes.webAlunoSalvar}}" th:object="${alunoForm}" method="post">
+        
+
+            <div class="form-grid">
+                <label for="cpf">CPF</label>
+                <input id="cpf" type="text" th:field="*{cpf}">
+
+                <label for="nome">Nome</label>
+                <input id="nome" type="text" th:field="*{nome}">
+
+                <label for="idade">Idade</label>
+                <input id="idade" type="number" th:field="*{idade}">
+
+                <label for="matricula">Matricula</label>
+                <input id="matricula" type="text" th:field="*{matricula}">
+            </div>
+
+            <div class="acoes">
+                <button type="submit">Salvar</button>
+            </div>
+        </form>
+
+        <div class="link-lista">
+            <a th:href="@{${routes.webAlunoListar}}">Ver lista</a>          
+        </div>
+    </div>
+    <script th:src="@{/js/aluno-form.js}"></script>
+</body>
+</html>
+

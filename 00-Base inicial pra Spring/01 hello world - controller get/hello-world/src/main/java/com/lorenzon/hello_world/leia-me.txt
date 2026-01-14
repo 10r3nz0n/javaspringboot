@@ -1,0 +1,157 @@
+Origem do Spring
+    O Spring surgiu como alternativa mais leve às complexidades do J2EE do início dos anos 2000. 
+    O nome e o código inicial têm relação com o trabalho do Rod Johnson em 2002.
+    O Spring Framework 1.0 final saiu em 24 de março de 2004.
+
+Quando apareceu o Spring Boot
+    O Spring Boot nasceu para reduzir atrito de configuração, oferecer convenções fortes e facilitar aplicações executáveis, 
+    inclusive com servidor embutido. 
+    Um texto do time Spring em 6 de agosto de 2013 descreve o objetivo do Boot como “production grade” com mínimo esforço.
+    Spring Boot 1.0 GA foi anunciado em 1 de abril de 2014.
+
+Primeiros passos:
+
+Foi criado um zip via initializer do sprint boot, via web em https://start.spring.io/. Neste foi escolhido:
+
+    Projeto Maven - Gerenciador de dependências
+    Linguagem Java - lingaugem de programação de base
+    Versão do Spring boot - 4.0.1
+
+    Metadados - Project Metadata
+    Grupo com.lorenzon
+    Artefato - hello-world
+
+    Empacotamento .jar
+    Configurações do tipo properties      
+
+    As dependencias inicias configuradas no pom.xml:
+
+        Essas dependencias no pom.xml definem quais capacidades o Spring Boot vai ativar no projeto. 
+        Em geral, cada starter puxa um conjunto coerente de bibliotecas para um objetivo especifico, 
+        como expor endpoints HTTP, desenvolvimento local e testes. 
+        O Lombok entra como dependencia de produtividade, reduzindo boilerplate em classes Java.
+
+        Cuidado: Aqui nao está como deve estar no pom corretamente, foi suprimido pra apenas indicar em topicos as dependencias
+
+        <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-starter-web</artifactId>
+                <artifactId>spring-boot-devtools</artifactId>
+                <artifactId>spring-boot-starter-test</artifactId>
+        
+        <groupId>org.projectlombok</groupId>
+                <artifactId>spring-boot-starter-test</artifactId>
+        
+        spring-boot-starter-web
+            Finalidade: habilitar a aplicacao como servidor web HTTP, com Spring MVC e suporte a REST.
+            Por que esta aqui: permite criar controllers com rotas GET e POST, 
+            serializar e desserializar JSON automaticamente (Jackson), 
+            subir o Tomcat embutido e atender requisicoes pela porta 8080.
+
+        spring-boot-devtools
+            Finalidade: melhorar produtividade em desenvolvimento local.
+            Por que esta aqui: habilita reinicio automatico da aplicacao quando classes mudam (restart), 
+            recarrega recursos com mais agilidade e reduz tempo de ciclo edita, compila, roda. 
+            Nao e recomendado para producao, normalmente fica como optional ou scope runtime.
+
+        spring-boot-starter-test
+            Finalidade: fornecer stack padrao de testes para Spring Boot.
+            Por que esta aqui: inclui JUnit, AssertJ, Mockito e suporte do Spring para testes de contexto e web (MockMvc). 
+            Permite criar testes unitarios e testes de integracao de controllers e services.
+
+        org.projectlombok:lombok
+            Finalidade: reduzir codigo repetitivo em classes Java.
+            Por que esta aqui: gera em tempo de compilacao metodos como getters, setters, toString, equals, hashCode, construtores, builders, por meio de anotacoes. 
+            Ajuda a manter classes mais curtas e legiveis.      
+
+Com Spring Boot Web (spring-boot-starter-web) você entra no universo de aplicações web no lado do servidor, em geral com Spring MVC. 
+    
+    A partir daí, você normalmente constrói um destes perfis:
+
+    API REST
+    Endpoints HTTP que retornam JSON ou texto. Um front-end separado (React, Angular, mobile) consome.
+
+    Aplicação MVC com views server-side
+    Com templates (Thymeleaf, por exemplo), você retorna HTML renderizado no servidor.
+
+    Backend monolítico modular
+    Um único deploy com camadas bem separadas, muito comum em sistemas internos.
+
+    Microservice
+    Tecnicamente o mesmo stack, só que com escopo menor, integração via HTTP ou mensageria, e deploy independente.
+
+    Quando eu coloco Spring Boot Web, eu construo uma aplicação web no lado do servidor, normalmente uma API REST.
+    Quando eu adiciono JPA, eu adiciono persistência em banco relacional com entidades e repositórios. 
+    Isso me coloca no cenário de back-end: receber HTTP, aplicar regra de negócio e persistir dados.
+
+    Quando você adiciona JPA (spring-boot-starter-data-jpa), você adiciona persistência relacional com mapeamento objeto-relacional. 
+    Isso posiciona sua aplicação como back-end com banco relacional, com entidades, repositórios e transações. 
+    Em termos didáticos: Web lida com HTTP e roteamento; JPA lida com armazenamento e consulta.
+
+    “O cliente chama uma URL. O servidor embutido recebe. 
+    O Spring MVC passa pelo DispatcherServlet, escolhe o controller certo, o controller chama o service, o service chama o repository, 
+    o repository acessa o banco. 
+    A resposta volta no caminho inverso e vira o corpo HTTP.”
+
+IoC, Inversion of Control
+    
+    IoC significa que o controle do ciclo de vida e da montagem dos objetos sai do seu código e entra no container do Spring. E
+    m vez de você criar manualmente dependências com new, o Spring cria, configura, injeta e gerencia objetos como beans, 
+    incluindo inicialização e descarte. O container central aqui é o ApplicationContext.
+
+    DI e DIP (onde entram)
+    DI, Dependency Injection, é a técnica prática que concretiza IoC: o Spring injeta dependências em construtores, campos ou métodos.
+    DIP, Dependency Inversion Principle, é um princípio do SOLID: módulos de alto nível não dependem de módulos de baixo nível; 
+    ambos dependem de abstrações. Na prática, em vez de um Service depender de uma classe concreta de Repository, 
+    ele depende de uma interface. O Spring “liga” a interface à implementação em runtime.
+
+    Singleton no Spring (diferença para o Singleton clássico)
+    No Spring, singleton é escopo de bean por padrão: um único objeto por container (por ApplicationContext). Isso não implica “um único objeto por JVM” e não implica um Singleton GoF com construtor privado e getInstance. O container controla a instância e entrega a mesma referência quando alguém pede aquele bean.
+    Ponto crítico para explicar: singleton no Spring e aplicação web multithread exige cuidado com estado mutável. Controller, Service e Repository costumam ser stateless. Estado por requisição vai em objetos locais, DTOs, variáveis de método, ou escopos específicos (request, session) quando faz sentido.
+
+    Compreensão e análise (por que isso existe e o que resolve)
+
+    Por que IoC e DI importam em aplicações reais
+    Você reduz acoplamento, facilita testes e troca implementações. Exemplo: um AlunoService depende de AlunoRepository (interface). Em testes, você troca por um fake ou mock. Em produção, o Spring injeta um Spring Data JPA repository.
+
+    Como o DIP aparece nas camadas Controller, Service, Repository
+    Controller orquestra entrada e saída HTTP, e depende de um Service.
+    Service concentra regras de aplicação e casos de uso, e depende de abstrações de persistência e integrações.
+    Repository representa acesso a dados. Em Spring Data JPA, muita coisa vira interface, e o framework fornece implementação em runtime. 
+    Aqui o DIP ganha força: o código de negócio conversa com abstrações, e o Spring faz wiring.
+
+    Onde o Singleton entra no desenho
+    O Spring cria por padrão um Controller singleton, um Service singleton, um Repository singleton. 
+    Esse padrão é eficiente e simplifica. O risco aparece quando você coloca estado dentro deles 
+    (ex.: guardar “usuário atual” em atributo). Para vídeo, vale uma frase objetiva: singleton no Spring funciona 
+    bem quando você mantém as classes stateless.
+
+
+Definicao atual de pacotes e classes:
+
+| Caminho no projeto                                   | Finalidade                                                        | Conteudo tipico    
+                                                             |
+| src/main/java                                        | Codigo fonte Java da aplicacao                                    | Pacotes base, controllers, services, dominio, repositorios, configuracoes       |
+| src/main/java/.../AlunoApplication.java              | Ponto de entrada do Spring Boot                                   | Classe com @SpringBootApplication e metodo main                                 |
+| src/main/java/.../controller                         | Camada de entrada HTTP                                            | @Controller e @RestController com rotas e metodos GET, POST, PUT, DELETE        |
+| src/main/java/.../service                            | Regras de aplicacao e casos de uso                                | Metodos de cadastro, validacao, orquestracao, transacoes                        |
+| src/main/java/.../domain                             | Modelo de negocio                                                 | Entidades, Value Objects, interfaces de repositorio (portas)                    |
+| src/main/java/.../infrastructure                     | Detalhes tecnicos e integracoes                                   | JPA adapters, repositories Spring Data, conversores, configuracoes tecnicas     |
+| src/main/resources                                   | Recursos carregados em runtime pelo classpath                     | application.properties, templates, static, mensagens, arquivos auxiliares       |
+| src/main/resources/application.properties            | Configuracao principal (default)                                  | Porta, datasource, JPA, logging, thymeleaf, etc                                 |
+| src/main/resources/application-dev.properties        | Configuracao por perfil dev                                       | Overrides para dev: banco local, logs, ddl-auto, etc                            |
+| src/main/resources/templates                         | Views HTML renderizadas no servidor                               | Arquivos .html do Thymeleaf, por exemplo aluno-form.html e aluno-lista.html     |
+| src/main/resources/static                            | Arquivos estaticos servidos diretamente                           | css, js, imagens, favicon, arquivos que o Spring serve sem controller           |
+| src/test/java                                        | Testes automatizados                                              | Testes JUnit, testes de contexto, testes de controller/service/repository       |
+| src/test/java/.../AlunoApplicationTests.java         | Teste de inicializacao do contexto                                | Classe com @SpringBootTest para validar que o Spring sobe sem erro              |
+| pom.xml                                              | Build do Maven e dependencias                                     | Dependencias Spring Boot, plugins, versao Java, profiles, configuracoes de build|
+| target                                               | Saida do build (gerado automaticamente)                           | classes compiladas, jar/war, relatorios, arquivos temporarios                   |
+| target/classes                                       | Bytecode e recursos copiados para execucao                        | .class + resources processados (templates, properties)                          |
+| target/test-classes                                  | Bytecode dos testes                                               | .class de testes compilados                                                     |
+| target/*.jar                                         | Artefato empacotado                                               | Jar executavel do Spring Boot (quando configurado)                              |
+
+
+
+
+
+
+
