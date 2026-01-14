@@ -58,3 +58,9 @@ build/
 
 ### VS Code ###
 .vscode/
+
+*.jpeg
+*.png
+*.jpg
+*.zip
+
