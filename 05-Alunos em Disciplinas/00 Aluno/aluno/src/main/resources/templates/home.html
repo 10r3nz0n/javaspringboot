@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="pt-br" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Home</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
+        .page { max-width: 900px; margin: 40px auto; padding: 24px; }
+        .titulo { text-align: center; margin-bottom: 18px; }
+        .card { border: 1px solid #ddd; border-radius: 8px; padding: 18px; margin: 14px 0; }
+        .card h3 { margin: 0 0 10px 0; }
+        .acoes { display: flex; gap: 12px; flex-wrap: wrap; }
+        .acoes a { display: inline-block; padding: 10px 14px; border: 1px solid #ccc; border-radius: 6px; text-decoration: none; color: #222; }
+        .nota { margin-top: 16px; color: #555; font-size: 0.95rem; }
+    </style>
+</head>
+<body>
+    <div class="page">
+        <h2 class="titulo">Sistema Aluno e Disciplina</h2>
+
+        <div class="card">
+            <h3>Cadastros</h3>
+            <div class="acoes">
+                <a th:href="@{${routes.webAlunoListar}}">Alunos</a>
+                <a th:href="@{${routes.webDisciplinaListar}}">Disciplinas</a>
+            </div>
+            <div class="nota">
+                Matriculas ficam na area de disciplinas, pois disciplina referencia alunos.
+            </div>
+        </div>
+    </div>
+</body>
+</html>

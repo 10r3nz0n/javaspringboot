@@ -1,0 +1,55 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+}
+
+.page {
+    max-width: 700px;
+    margin: 40px auto;
+    padding: 24px;
+}
+
+.titulo {
+    text-align: center;
+    margin-bottom: 24px;
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: 160px 1fr;
+    gap: 12px 14px;
+    align-items: center;
+    max-width: 520px;
+    margin: 0 auto;
+}
+
+.form-grid label {
+    text-align: right;
+    padding-right: 6px;
+}
+
+.form-grid input {
+    width: 100%;
+    max-width: 320px;
+    padding: 8px 10px;
+    box-sizing: border-box;
+}
+
+.acoes {
+    text-align: center;
+    margin-top: 18px;
+}
+
+.link-central {
+    text-align: center;
+    margin-top: 18px;
+}
+
+.erro {
+    margin: 0 auto 18px auto;
+    max-width: 520px;
+    padding: 10px 12px;
+    border: 1px solid #c00;
+    background: #fff5f5;
+}
