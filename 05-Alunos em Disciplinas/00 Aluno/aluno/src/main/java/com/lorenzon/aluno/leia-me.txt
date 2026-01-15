@@ -1,249 +1,113 @@
-/*
+Neste complemento fizemos a inclusão de Disciplinas, onde usamos agregação e alteramos o sistema para ter um home.
 
-Neste complemento:
+Objetivo da etapa
+Adicionar o módulo Disciplina com cadastro simples (codigo, descricao) e permitir matricular alunos em disciplinas. 
+Criar também um Home central para navegação entre os módulos, mantendo o cadastro de aluno independente do cadastro de disciplina.
 
-API REST no seu contexto
-Uma API REST expõe endpoints HTTP que recebem e devolvem representacoes de dados, tipicamente JSON. 
-Diferente do @Controller MVC que devolve templates HTML, o @RestController devolve diretamente objetos serializados em JSON.
+Decisão de modelagem do domínio
+Disciplina e Aluno existem de forma independente. Um aluno pode existir sem disciplina e uma disciplina pode existir sem alunos. 
+Por isso, o relacionamento não caracteriza composição. O relacionamento adotado é uma associação com cardinalidade muitos para muitos (many to many), implementada com uma tabela de junção no banco.
 
-DTO na API
-Mesmo motivo do DTO web. JSON de entrada e saida nao deve acoplar diretamente com entidade JPA. 
-Isso evita overposting, controla validacao e reduz impacto quando o dominio evolui.
+Aggregate Root e responsabilidade
+Disciplina foi tratada como Aggregate Root para o caso de uso de matrícula. 
+Isso significa que as alterações de matrículas são feitas por meio do agregado Disciplina, 
+preservando consistência e deixando claro que o caso de uso “matricular” pertence ao contexto de Disciplina. 
+O formulário de aluno não exibe disciplinas por decisão de simplificação e separação de responsabilidades.
 
-Mapper na API
-Classe que converte DTO JSON para dominio e dominio para DTO JSON. Centraliza conversoes como cpf String para Cpf.
+Análise
 
-Fluxo:
+Estrutura arquitetural aplicada na etapa
+Mantivemos o padrão por camadas e a separação de responsabilidades:
 
-    Cliente HTTP Insomnia envia JSON para um endpoint /api/alunos.
+Domain
+Contém as entidades e regras básicas do domínio (Disciplina e seus métodos de alteração e matrícula), além de interfaces de repositório do domínio.
 
-    @RestController recebe DTO de request, valida, chama AlunoApplicationService.
+Application
+Contém os casos de uso, validações de regras de negócio e orquestração transacional. Aqui está o DisciplinaApplicationService, 
+onde ficam: criação, atualização, exclusão, listagem e atualização das matrículas.
 
-    Service cria ou busca entidades, usa repositorio, aplica invariantes e transacao.
+Infrastructure
+Contém detalhes de persistência, adaptadores e integração com frameworks. Nesta etapa incluímos o repositório JPA de Disciplina e 
+o adaptador que implementa a interface do domínio, seguindo o mesmo padrão já usado no projeto.
 
-    Controller REST retorna ResponseEntity com status code e DTO de response.
+Interfaces Web
+Contém controllers web (Thymeleaf), DTOs de formulário e templates HTML. Nesta etapa adicionamos: controller de Disciplina, controller 
+do Home e páginas HTML para criar, listar e gerenciar matrículas.
 
-Métodos:    
-    
-    A API foi implementada com estilo REST pragmatico. 
-    Os endpoints principais seguem recursos e metodos HTTP, e endpoints auxiliares foram adicionados para 
-    atender casos de uso reais como batch e busca por cpf.
+Mapeamento many to many no banco
+O relacionamento Disciplina Aluno foi implementado com @ManyToMany e @JoinTable, criando uma tabela de junção disciplina_aluno com as 
+colunas disciplina_id e aluno_id. Esse modelo atende o cenário de um aluno poder estar matriculado em várias disciplinas e uma disciplina ter vários alunos.
 
-    A etapa de API REST adicionou uma segunda interface de entrada paralela ao Web MVC. 
-    Foram criados controllers REST para receber e retornar JSON, DTOs para definir contratos de entrada e saida, 
-    mappers para conversao entre DTO e dominio e um handler de excecoes para padronizar respostas com status HTTP corretos. 
-    A aplicacao passou a validar conflitos de unicidade de cpf e matricula antes de persistir, retornando 409 em caso de conflito 
-    e evitando respostas 500. O estilo adotado foi REST pragmatico, combinando endpoints 
-    RESTful para recursos com endpoints auxiliares para batch e busca por atributos.
+Transacao e consistencia
+Os métodos de escrita (criar, atualizar, excluir, atualizarMatriculas) rodam em transação, garantindo consistência das alterações. 
+O método atualizarMatriculas substitui o conjunto de alunos matriculados, deixando o estado final explícito.
 
-    POST /api/alunos para um aluno.
-    POST /api/alunos/batch para varios alunos, ou aceitar lista no mesmo endpoint.
-    GET /api/alunos para listar.
-    GET /api/alunos/{id} para buscar por id.
-    GET /api/alunos/cpf/{cpf} para buscar por cpf.
+Por que o aluno não lista disciplinas
+Como a matrícula foi centralizada no agregado Disciplina, a visão de disciplinas do aluno não é necessária para o funcionamento do caso de uso atual. 
+Isso também evita acoplamento entre as telas e simplifica a evolução. Caso no futuro seja necessário mostrar as disciplinas do aluno, existem duas opções: 
+tornar a relação bidirecional, ou criar consultas específicas sem mudar o agregado.
 
+Navegacao e Home
+Criamos um Home como ponto de entrada para evitar fluxo preso em telas de CRUD. A navegação foi padronizada com links para Home, 
+lista de alunos e lista de disciplinas em cada tela.
 
-Estrutura
+Prática e exemplo
 
-+-----------------------------------------------------------+--------------------------------------------------------------+----------------------------------------------------------------------------------------------+
-| Pacote                                                    | Finalidade do pacote                                          | Classes e finalidade                                                                        |
-+-----------------------------------------------------------+--------------------------------------------------------------+----------------------------------------------------------------------------------------------+
-| com.lorenzon.aluno.interfaces.api.controller              | Camada de entrada REST, expõe endpoints JSON e chama casos    | AlunoRestController: endpoints /api/alunos, valida request, chama service, retorna status   |
-|                                                           | de uso da aplicacao                                           | HTTP com ResponseEntity                                                                     |
-+-----------------------------------------------------------+--------------------------------------------------------------+----------------------------------------------------------------------------------------------+
-| com.lorenzon.aluno.interfaces.api.dto                     | Contratos JSON de entrada e saida, desacopla dominio de HTTP  | AlunoRequestDto: payload de entrada e validacao; AlunoResponseDto: payload de saida         |
-+-----------------------------------------------------------+--------------------------------------------------------------+----------------------------------------------------------------------------------------------+
-| com.lorenzon.aluno.interfaces.api.mapper                  | Conversao DTO <-> dominio, centraliza transformacoes          | AlunoApiMapper: converte DTO para dominio e dominio para DTO, cria Cpf a partir de String   |
-+-----------------------------------------------------------+--------------------------------------------------------------+----------------------------------------------------------------------------------------------+
-| com.lorenzon.aluno.interfaces.api.advice                  | Tratamento transversal de erros da API, padroniza respostas   | ApiExceptionHandler: converte excecoes em 400 ou 409 com corpo JSON limpo                   |
-+-----------------------------------------------------------+--------------------------------------------------------------+----------------------------------------------------------------------------------------------+
-| com.lorenzon.aluno.application.service                    | Casos de uso, regras, validacoes e transacoes                 | AlunoApplicationService: cadastrar, cadastrarVarios, listar, buscar e excluir com validacoes|
-+-----------------------------------------------------------+--------------------------------------------------------------+----------------------------------------------------------------------------------------------+
-| com.lorenzon.aluno.application.exception                  | Excecoes de negocio da aplicacao, erros previsiveis           | DuplicidadeCampoUnicoException: conflito de unicidade em cpf ou matricula                   |
-+-----------------------------------------------------------+--------------------------------------------------------------+----------------------------------------------------------------------------------------------+
-| com.lorenzon.aluno.domain.model                           | Modelo do dominio, invariantes e Value Objects                | Aluno: entidade; Cpf: Value Object normaliza e valida 11 digitos                            |
-+-----------------------------------------------------------+--------------------------------------------------------------+----------------------------------------------------------------------------------------------+
-| com.lorenzon.aluno.domain.repository                      | Porta para persistencia, aplica DIP e isola tecnologia         | AlunoRepositoryInterface: contrato do repositorio usado pela camada application            |
-+-----------------------------------------------------------+--------------------------------------------------------------+----------------------------------------------------------------------------------------------+
-| com.lorenzon.aluno.infrastructure.persistence.jpa         | Persistencia JPA e detalhes de banco                          | AlunoJpaRepository: queries e exists; AlunoRepositoryJpaAdapter: adaptador; CpfConverter    |
-+-----------------------------------------------------------+--------------------------------------------------------------+----------------------------------------------------------------------------------------------+
+3.1. Principais arquivos adicionados
 
-Refrescando Conceitos
+Domain
+Disciplina (entidade)
+DisciplinaRepositoryInterface (contrato do dominio)
 
-    Pacote
-    Agrupamento logico de classes em Java para organizar responsabilidades e controlar visibilidade por namespace.
+Infrastructure Persistence
+DisciplinaJpaRepository (Spring Data JPA)
+DisciplinaRepositoryJpaAdapter (adaptador do dominio para JPA)
 
-    Camada de entrada
-    Parte do sistema que recebe chamadas externas, interpreta dados e aciona casos de uso.
+Application
+DisciplinaApplicationService (casos de uso e validacoes)
 
-    REST
-    Estilo arquitetural de APIs que trata dados como recursos acessados por HTTP, usando metodos e status codes padronizados.
+Web
+HomeWebController (rota / e /web/home)
+DisciplinaWebController (rotas /web/disciplina/...)
+DisciplinaForm e mapper (DTO de formulario para Thymeleaf)
+Templates HTML: home, disciplina-form, disciplina-lista, disciplina-matriculas
 
-    Endpoint
-    Caminho HTTP exposto pela aplicacao, composto por URL e metodo, que executa uma funcionalidade.
+3.2. Anotacoes JPA utilizadas e significado
 
-    JSON
-    Formato de troca de dados textual, muito usado em APIs para enviar e receber estruturas de dados.
+@Entity
+Marca a classe como entidade persistente gerenciada pelo JPA.
 
-    HTTP
-    Protocolo de comunicacao usado na Web para requisitar e responder recursos, base de GET, POST, PUT e DELETE.
+@Table
+Define nome da tabela e pode definir constraints, como unicidade.
 
-    Recurso
-    Entidade conceitual exposta na API, por exemplo aluno, que pode ser criado, consultado, atualizado e removido.
+@Id e @GeneratedValue
+Indicam a chave primaria e a estrategia de geracao do id.
 
-    Controller REST
-    Classe anotada com @RestController que recebe requisicoes HTTP, faz binding do JSON e devolve JSON como resposta.
+@Column
+Define caracteristicas da coluna: nullability, tamanho, unicidade.
 
-    Request
-    Dados de entrada de uma requisicao HTTP, por exemplo JSON enviado no corpo.
+@ManyToMany
+Define associacao muitos para muitos.
 
-    Response
-    Dados devolvidos pela aplicacao na resposta HTTP, por exemplo JSON com aluno cadastrado.
+@JoinTable e @JoinColumn
+Define a tabela de junção e as colunas que fazem a ligacao entre as entidades.
 
-    Status HTTP
-    Codigo numerico da resposta que indica resultado, por exemplo 200 OK, 201 Created, 400 Bad Request, 409 Conflict.
+3.3. Regras de dominio implementadas em Disciplina
 
-    ResponseEntity
-    Tipo do Spring usado para montar resposta HTTP completa, corpo, headers e status code.
+alterarCodigo e alterarDescricao
+Garantem campos obrigatorios e normalizacao com trim.
 
-    DTO
-    Data Transfer Object, objeto simples usado para trafegar dados entre camadas ou sistemas, sem regras de negocio.
-    Voce pode usar a mesma classe para receber e devolver JSON, inclusive uma classe anemica. 
-    O ponto e que isso quase sempre piora acoplamento e manutencao. 
-    O DTO paralelo nao existe porque o Spring exige. 
-    Ele existe para proteger seu dominio e estabilizar o contrato da API.
+matricular e desmatricular
+Encapsulam a regra de insercao e remocao no conjunto de alunos.
 
-        Classe anemica
-        Objeto com dados e quase nenhuma regra, tipicamente getters e setters.
+substituirMatriculas
+Define a lista final de matriculas de forma deterministica.
 
-        DTO
-        Objeto de transporte, feito para contrato de entrada e saida, com foco em forma e validacao, nao em regras de negocio.
+Ajustes de rotas e por que centralizamos isso
 
-        Entidade de dominio ou entidade JPA
-        Objeto que representa o conceito de negocio e, no caso JPA, tambem carrega mapeamentos e detalhes de persistencia.
+RoutesAdvice foi usado para expor rotas para os templates, evitando strings duplicadas espalhadas em HTML. 
+Isso reduz erro humano e centraliza alteracoes de caminho. Um erro de template ocorreu quando o template chamou routes.webDisciplinaMatriculas sem existir o getter correspondente. 
+A correção foi garantir o getter getWebDisciplinaMatriculas e a constante correta.
 
-    Contrato da API
-    Definicao do formato esperado de entrada e saida, campos, tipos e validacoes, expresso por DTOs e rotas.
 
-    Validacao
-    Verificacao de regras de entrada, como obrigatoriedade e formato, antes de executar persistencia ou regra de negocio.
 
-    Jakarta Validation
-    Especificacao de validacao por anotacoes, como @NotBlank e @Min, usada pelo Spring com @Valid.
-
-    Mapper
-    Classe responsavel por converter objetos entre formatos, tipicamente DTO para dominio e dominio para DTO.
-
-    Conversao DTO <-> dominio
-    Processo de transformar dados de transporte em objetos com regras e invariantes e vice versa.
-
-    Normalizacao
-    Ato de padronizar um valor para um formato canonico, por exemplo CPF armazenado apenas com digitos.
-
-    Transformacao
-    Ato de adaptar dados, como concatenar, recortar, mapear tipos, ou criar Value Objects.
-
-    Advice
-    Mecanismo do Spring para tratar preocupacoes transversais em controllers, como tratamento de excecoes.
-
-    Tratamento transversal
-    Logica aplicada de forma comum a varias requisicoes, evitando repeticao, por exemplo converter excecoes em respostas.
-
-    Handler de excecoes
-    Classe ou metodo que captura excecoes e gera respostas HTTP adequadas sem estourar stack trace ao cliente.
-
-    Erro previsivel
-    Falha esperada por regra de negocio, como CPF ja existente, que deve virar resposta controlada.
-
-    Casos de uso
-    Operacoes centrais da aplicacao, como cadastrar aluno, listar alunos e buscar por cpf, definidas na camada application.
-
-    Service de aplicacao
-    Classe que implementa casos de uso, orquestra repositorio, regras e transacoes, sem depender de HTTP.
-
-    Orquestracao
-    Coordenacao de chamadas entre repositorio, dominio e validacoes para concluir um caso de uso.
-
-    Transacao
-    Unidade de trabalho no banco, garante consistencia ao salvar ou atualizar, geralmente controlada por @Transactional.
-
-    Excecao de negocio
-    Excecao criada para representar violacao de regra, usada para retornar erro adequado e explicito.
-
-    Conflito de unicidade
-    Situacao em que um campo marcado como unique no banco recebe um valor ja existente, gerando erro de integridade.
-
-    CPF
-    Cadastro de Pessoa Fisica, identificador brasileiro, usado aqui como atributo unico do aluno.
-
-    Value Object
-    Objeto imutavel ou conceitual do dominio que representa um valor com regras, por exemplo Cpf com validacao.
-
-    Invariante
-    Regra que deve ser sempre verdadeira no dominio, por exemplo CPF com 11 digitos.
-
-    Porta
-    Interface do dominio que define um contrato para o mundo externo, permitindo inversao de dependencia.
-
-    DIP
-    Dependency Inversion Principle, principio SOLID que orienta depender de abstracoes e nao de implementacoes.
-
-    Repositorio
-    Abstracao de persistencia que oferece operacoes para salvar e consultar entidades, sem expor detalhes do banco.
-
-    Isolamento de tecnologia
-    Separacao entre regras e detalhes, evitando que dominio dependa de JPA, Spring ou banco especifico.
-
-    Infrastructure
-    Camada que contem implementacoes tecnicas, como adaptadores JPA, configuracoes e integracoes externas.
-
-    Persistencia JPA
-    Uso de JPA e Hibernate para mapear entidades para tabelas e operar no banco via ORM.
-
-    Spring Data
-    Projeto Spring que gera implementacoes de repositorio automaticamente a partir de interfaces e convencoes.
-
-    Query
-    Consulta ao banco ou ao repositorio, como buscar por cpf ou verificar existencia.
-
-    existsBy
-    Convencao do Spring Data para criar metodos que verificam existencia de registro com base em um campo.
-
-    Adapter
-    Classe que converte uma interface do dominio em uma implementacao concreta, por exemplo porta de repositorio para Spring Data.
-
-    Converter JPA
-    Componente que converte tipos customizados do dominio para tipos persistiveis e vice versa, como Cpf para String.
-
-    varchar(11)
-    Tipo de coluna textual no banco com limite de 11 caracteres, adequado para CPF sem pontuacao.
-
-Exemplos
-
-    POST http://localhost:3000/api/alunos
-
-        Body JSON
-
-        {
-        "cpf": "12345678909",
-        "nome": "Ana Clara",
-        "idade": 20,
-        "matricula": "2026A001"
-        }
-
-    POST http://localhost:3000/api/alunos/batch
-
-        Body JSON
-
-        [
-        { "cpf": "44444444444", "nome": "Ana Clara", "idade": 20, "matricula": "2026A003" },
-        { "cpf": "55555555555", "nome": "Bruno Lima", "idade": 22, "matricula": "2026A004" }
-        ]
-    
-    GET http://localhost:3000/api/alunos/1
-
-    GET http://localhost:3000/api/alunos/cpf/12345678909
-
-    GET http://localhost:3000/api/alunos
-
-*/
