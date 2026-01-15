@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="pt-br" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Disciplinas</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
+        .page { max-width: 980px; margin: 40px auto; padding: 24px; }
+        .titulo { text-align: center; margin-bottom: 18px; }
+        .erro { margin: 0 auto 18px auto; max-width: 900px; padding: 10px 12px; border: 1px solid #c00; background: #fff5f5; box-sizing: border-box; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+        th { background: #f4f4f4; }
+        .acoes-col { width: 260px; }
+        .topo { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+        .topo a { text-decoration: none; }
+        form { display: inline; }
+    </style>
+    <script>
+        function confirmarExclusao() {
+            return confirm("Confirma exclusao da disciplina?");
+        }
+    </script>
+</head>
+<body>
+    <div class="page">
+        <div class="topo">
+            <h2 class="titulo">Disciplinas</h2>
+            <a th:href="@{${routes.webDisciplinaCriar}}">Novo cadastro</a>
+        </div>
+
+        <div th:if="${erro}" class="erro" th:text="${erro}"></div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Codigo</th>
+                    <th>Descricao</th>
+                    <th>Matriculados</th>
+                    <th class="acoes-col">Acoes</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr th:if="${#lists.isEmpty(disciplinas)}">
+                    <td colspan="4">Nenhuma disciplina cadastrada.</td>
+                </tr>
+
+                <tr th:each="d : ${disciplinas}">
+                    <td th:text="${d.codigo}"></td>
+                    <td th:text="${d.descricao}"></td>
+                    <td th:text="${d.alunos != null ? d.alunos.size() : 0}"></td>
+
+                    <td class="acoes-col">
+                        <a th:href="@{${routes.webDisciplinaEditar} + '/' + ${d.id}}">Editar</a>
+                        <span> | </span>
+                        <a th:href="@{${routes.webDisciplinaMatriculas} + '/' + ${d.id}}">Matriculas</a>
+                        <span> | </span>
+
+                        <form th:action="@{${routes.webDisciplinaExcluir} + '/' + ${d.id}}" method="post" onsubmit="return confirmarExclusao();">
+                            <button type="submit">Excluir</button>
+                        </form>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div style="margin-top:18px;">
+            <a th:href="@{${routes.webHomeIndex}}">Home</a>            
+        </div>
+    </div>
+</body>
+</html>

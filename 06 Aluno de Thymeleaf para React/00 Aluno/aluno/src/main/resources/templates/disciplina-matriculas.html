@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="pt-br" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Matriculas</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
+        .page { max-width: 980px; margin: 40px auto; padding: 24px; }
+        .titulo { text-align: center; margin-bottom: 10px; }
+        .subtitulo { text-align: center; margin-bottom: 18px; color: #444; }
+        .box { max-width: 900px; margin: 0 auto; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+        th { background: #f4f4f4; }
+        .acoes { display: flex; justify-content: center; gap: 10px; margin-top: 16px; }
+        .acoes button { padding: 10px 16px; cursor: pointer; }
+        .links { text-align: center; margin-top: 16px; }
+    </style>
+</head>
+<body>
+    <div class="page">
+        <h2 class="titulo">Matriculas</h2>
+        <div class="subtitulo">
+            <span th:text="${disciplina.codigo}"></span>
+            <span> | </span>
+            <span th:text="${disciplina.descricao}"></span>
+        </div>
+
+        <div class="box">
+            <form th:action="@{${routes.webDisciplinaMatriculas} + '/' + ${disciplina.id}}" method="post">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Selecionar</th>
+                            <th>Aluno</th>
+                            <th>Matricula</th>
+                            <th>CPF</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr th:if="${#lists.isEmpty(alunos)}">
+                            <td colspan="4">Nenhum aluno cadastrado. Cadastre aluno antes de matricular.</td>
+                        </tr>
+
+                        <tr th:each="a : ${alunos}">
+                            <td>
+                                <input type="checkbox"
+                                       name="alunoIds"
+                                       th:value="${a.id}"
+                                       th:checked="${matriculadosIds.contains(a.id)}" />
+                            </td>
+                            <td th:text="${a.nome}"></td>
+                            <td th:text="${a.matricula}"></td>
+                            <td th:text="${a.cpf}"></td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="acoes">
+                    <button type="submit">Salvar matriculas</button>
+                </div>
+
+                <div class="links">
+                    <a th:href="@{${routes.webDisciplinaListar}}">Voltar para lista</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</body>
+</html>

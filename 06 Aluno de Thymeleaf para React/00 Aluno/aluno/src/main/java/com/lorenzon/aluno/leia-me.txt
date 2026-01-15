@@ -1,0 +1,113 @@
+Neste complemento fizemos a inclusão de Disciplinas, onde usamos agregação e alteramos o sistema para ter um home.
+
+Objetivo da etapa
+Adicionar o módulo Disciplina com cadastro simples (codigo, descricao) e permitir matricular alunos em disciplinas. 
+Criar também um Home central para navegação entre os módulos, mantendo o cadastro de aluno independente do cadastro de disciplina.
+
+Decisão de modelagem do domínio
+Disciplina e Aluno existem de forma independente. Um aluno pode existir sem disciplina e uma disciplina pode existir sem alunos. 
+Por isso, o relacionamento não caracteriza composição. O relacionamento adotado é uma associação com cardinalidade muitos para muitos (many to many), implementada com uma tabela de junção no banco.
+
+Aggregate Root e responsabilidade
+Disciplina foi tratada como Aggregate Root para o caso de uso de matrícula. 
+Isso significa que as alterações de matrículas são feitas por meio do agregado Disciplina, 
+preservando consistência e deixando claro que o caso de uso “matricular” pertence ao contexto de Disciplina. 
+O formulário de aluno não exibe disciplinas por decisão de simplificação e separação de responsabilidades.
+
+Análise
+
+Estrutura arquitetural aplicada na etapa
+Mantivemos o padrão por camadas e a separação de responsabilidades:
+
+Domain
+Contém as entidades e regras básicas do domínio (Disciplina e seus métodos de alteração e matrícula), além de interfaces de repositório do domínio.
+
+Application
+Contém os casos de uso, validações de regras de negócio e orquestração transacional. Aqui está o DisciplinaApplicationService, 
+onde ficam: criação, atualização, exclusão, listagem e atualização das matrículas.
+
+Infrastructure
+Contém detalhes de persistência, adaptadores e integração com frameworks. Nesta etapa incluímos o repositório JPA de Disciplina e 
+o adaptador que implementa a interface do domínio, seguindo o mesmo padrão já usado no projeto.
+
+Interfaces Web
+Contém controllers web (Thymeleaf), DTOs de formulário e templates HTML. Nesta etapa adicionamos: controller de Disciplina, controller 
+do Home e páginas HTML para criar, listar e gerenciar matrículas.
+
+Mapeamento many to many no banco
+O relacionamento Disciplina Aluno foi implementado com @ManyToMany e @JoinTable, criando uma tabela de junção disciplina_aluno com as 
+colunas disciplina_id e aluno_id. Esse modelo atende o cenário de um aluno poder estar matriculado em várias disciplinas e uma disciplina ter vários alunos.
+
+Transacao e consistencia
+Os métodos de escrita (criar, atualizar, excluir, atualizarMatriculas) rodam em transação, garantindo consistência das alterações. 
+O método atualizarMatriculas substitui o conjunto de alunos matriculados, deixando o estado final explícito.
+
+Por que o aluno não lista disciplinas
+Como a matrícula foi centralizada no agregado Disciplina, a visão de disciplinas do aluno não é necessária para o funcionamento do caso de uso atual. 
+Isso também evita acoplamento entre as telas e simplifica a evolução. Caso no futuro seja necessário mostrar as disciplinas do aluno, existem duas opções: 
+tornar a relação bidirecional, ou criar consultas específicas sem mudar o agregado.
+
+Navegacao e Home
+Criamos um Home como ponto de entrada para evitar fluxo preso em telas de CRUD. A navegação foi padronizada com links para Home, 
+lista de alunos e lista de disciplinas em cada tela.
+
+Prática e exemplo
+
+3.1. Principais arquivos adicionados
+
+Domain
+Disciplina (entidade)
+DisciplinaRepositoryInterface (contrato do dominio)
+
+Infrastructure Persistence
+DisciplinaJpaRepository (Spring Data JPA)
+DisciplinaRepositoryJpaAdapter (adaptador do dominio para JPA)
+
+Application
+DisciplinaApplicationService (casos de uso e validacoes)
+
+Web
+HomeWebController (rota / e /web/home)
+DisciplinaWebController (rotas /web/disciplina/...)
+DisciplinaForm e mapper (DTO de formulario para Thymeleaf)
+Templates HTML: home, disciplina-form, disciplina-lista, disciplina-matriculas
+
+3.2. Anotacoes JPA utilizadas e significado
+
+@Entity
+Marca a classe como entidade persistente gerenciada pelo JPA.
+
+@Table
+Define nome da tabela e pode definir constraints, como unicidade.
+
+@Id e @GeneratedValue
+Indicam a chave primaria e a estrategia de geracao do id.
+
+@Column
+Define caracteristicas da coluna: nullability, tamanho, unicidade.
+
+@ManyToMany
+Define associacao muitos para muitos.
+
+@JoinTable e @JoinColumn
+Define a tabela de junção e as colunas que fazem a ligacao entre as entidades.
+
+3.3. Regras de dominio implementadas em Disciplina
+
+alterarCodigo e alterarDescricao
+Garantem campos obrigatorios e normalizacao com trim.
+
+matricular e desmatricular
+Encapsulam a regra de insercao e remocao no conjunto de alunos.
+
+substituirMatriculas
+Define a lista final de matriculas de forma deterministica.
+
+Ajustes de rotas e por que centralizamos isso
+
+RoutesAdvice foi usado para expor rotas para os templates, evitando strings duplicadas espalhadas em HTML. 
+Isso reduz erro humano e centraliza alteracoes de caminho. Um erro de template ocorreu quando o template chamou routes.webDisciplinaMatriculas sem existir o getter correspondente. 
+A correção foi garantir o getter getWebDisciplinaMatriculas e a constante correta.
+
+
+
